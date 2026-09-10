@@ -7,8 +7,8 @@
  */
 
 import React from 'react';
-import { ResolvedLayout } from './resolver';
-import { AdSpec, AdElement, TextElement, ImageElement, ButtonElement } from './spec';
+import type { ResolvedLayout } from './resolver';
+import type { AdSpec, AdElement, TextElement, ImageElement, ButtonElement } from './spec';
 
 export interface RenderDomProps {
   layout: ResolvedLayout;

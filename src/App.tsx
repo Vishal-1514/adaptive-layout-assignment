@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { defaultAdSpec } from './spec';
-import { standardSurfaces, createCustomSurface, SurfaceProfile } from './surfaces';
+import  { standardSurfaces, createCustomSurface } from './surfaces';
+import type { SurfaceProfile } from './surfaces';
 import { resolveLayout } from './resolver';
 import { AdRendererDOM } from './render-dom';
 import { AdRendererCanvas } from './render-canvas';
