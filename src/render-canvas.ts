@@ -1,117 +1,196 @@
-import type { ResolvedLayout, ResolvedElementBounds } from './resolver';
+/**
+ * render-canvas.ts
+ *
+ * Alternative Canvas Rendering Backend for ResolvedLayout.
+ * Demonstrates total decoupling of the Constraint Resolver from the DOM.
+ * Renders identical layouts purely via 2D Canvas context operations.
+ */
 
-export function renderCanvasLayout(
-  canvas: HTMLCanvasElement,
-  layout: ResolvedLayout
-): void {
-  canvas.width = layout.surface.width;
-  canvas.height = layout.surface.height;
+import React, { useEffect, useRef } from 'react';
+import type { ResolvedLayout } from './resolver';
+import type { AdSpec, AdElement, TextElement, ImageElement, ButtonElement } from './spec';
 
-  const ctx = canvas.getContext('2d');
+export interface RenderCanvasProps {
+  layout: ResolvedLayout;
+  spec: AdSpec;
+  showSafeAreaGuide?: boolean;
+}
 
-  if (!ctx) {
-    throw new Error('Canvas 2D context is not available.');
-  }
+export const AdRendererCanvas: React.FC<RenderCanvasProps> = ({
+  layout,
+  spec,
+  showSafeAreaGuide = false,
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const { surface, elements, diagnostics } = layout;
+  const specMap = new Map<string, AdElement>(spec.elements.map(e => [e.id, e]));
 
-  // Clear previous rendering
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-  // Draw each resolved element
-  for (const element of layout.elements) {
-    if (!element.visible) {
-      continue;
+    // Handle high DPI displays for crisp canvas rendering
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = surface.width * dpr;
+    canvas.height = surface.height * dpr;
+    ctx.scale(dpr, dpr);
+
+    // 1. Draw Background
+    ctx.fillStyle = spec.metadata?.bgColor ?? '#0f172a';
+    ctx.fillRect(0, 0, surface.width, surface.height);
+
+    // Subtle background gradient
+    const bgGrad = ctx.createLinearGradient(0, 0, surface.width, surface.height);
+    bgGrad.addColorStop(0, 'rgba(30, 41, 59, 0.6)');
+    bgGrad.addColorStop(1, 'rgba(15, 23, 42, 0.95)');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, surface.width, surface.height);
+
+    // 2. Optional Safe Area Guide
+    if (showSafeAreaGuide) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(244, 63, 94, 0.8)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(
+        diagnostics.usableArea.x,
+        diagnostics.usableArea.y,
+        diagnostics.usableArea.width,
+        diagnostics.usableArea.height
+      );
+      ctx.fillStyle = 'rgba(244, 63, 94, 0.9)';
+      ctx.font = 'bold 11px system-ui';
+      ctx.fillText(
+        `SAFE AREA (${diagnostics.usableArea.width}x${diagnostics.usableArea.height})`,
+        diagnostics.usableArea.x + 8,
+        diagnostics.usableArea.y + 16
+      );
+      ctx.restore();
     }
 
-    drawElement(ctx, element);
-  }
-}
+    // 3. Render Elements sorted by zIndex
+    const sorted = [...elements].filter(e => e.visible).sort((a, b) => a.zIndex - b.zIndex);
 
-function drawElement(
-  ctx: CanvasRenderingContext2D,
-  element: ResolvedElementBounds
-): void {
-  if (element.type === 'image') {
-    drawImagePlaceholder(ctx, element);
-    return;
-  }
+    for (const bounds of sorted) {
+      const original = specMap.get(bounds.id);
+      if (!original) continue;
 
-  if (element.type === 'button') {
-    drawButton(ctx, element);
-    return;
-  }
+      ctx.save();
 
-  drawText(ctx, element);
-}
+      // --- Hero Image ---
+      if (original.role === 'hero' && original.type === 'image') {
+        const imgEl = original as ImageElement;
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = imgEl.src;
+        img.onload = () => {
+          if (!canvasRef.current) return;
+          const freshCtx = canvasRef.current.getContext('2d');
+          if (freshCtx) {
+            freshCtx.save();
+            freshCtx.drawImage(img, bounds.x, bounds.y, bounds.width, bounds.height);
+            freshCtx.restore();
+          }
+        };
 
-function drawImagePlaceholder(
-  ctx: CanvasRenderingContext2D,
-  element: ResolvedElementBounds
-): void {
-  ctx.fillStyle = '#e5e7eb';
+        // Placeholder background while loading
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.roundRect(bounds.x, bounds.y, bounds.width, bounds.height, 12);
+        ctx.fill();
 
-  ctx.fillRect(
-    element.x,
-    element.y,
-    element.width,
-    element.height
-  );
+        if (img.complete && img.naturalWidth > 0) {
+          ctx.drawImage(img, bounds.x, bounds.y, bounds.width, bounds.height);
+        }
+      }
 
-  ctx.strokeStyle = '#9ca3af';
-  ctx.strokeRect(
-    element.x,
-    element.y,
-    element.width,
-    element.height
-  );
-}
+      // --- Branding Logo ---
+      else if (original.role === 'branding') {
+        const imgEl = original as ImageElement;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.beginPath();
+        ctx.roundRect(bounds.x, bounds.y, bounds.width, bounds.height, 8);
+        ctx.fill();
 
-function drawButton(
-  ctx: CanvasRenderingContext2D,
-  element: ResolvedElementBounds
-): void {
-  ctx.fillStyle = '#4f46e5';
+        const logoImg = new Image();
+        logoImg.crossOrigin = 'anonymous';
+        logoImg.src = imgEl.src;
+        logoImg.onload = () => {
+          if (!canvasRef.current) return;
+          const freshCtx = canvasRef.current.getContext('2d');
+          if (freshCtx) {
+            freshCtx.drawImage(logoImg, bounds.x + 4, bounds.y + 4, bounds.width - 8, bounds.height - 8);
+          }
+        };
 
-  ctx.fillRect(
-    element.x,
-    element.y,
-    element.width,
-    element.height
-  );
+        if (logoImg.complete && logoImg.naturalWidth > 0) {
+          ctx.drawImage(logoImg, bounds.x + 4, bounds.y + 4, bounds.width - 8, bounds.height - 8);
+        }
+      }
 
-  ctx.fillStyle = '#ffffff';
+      // --- Primary Headline ---
+      else if (original.role === 'primary' && original.type === 'text') {
+        const textEl = original as TextElement;
+        const text = bounds.renderText ?? textEl.content;
+        const fontSize = bounds.fontSize ?? 24;
 
-  const fontSize = element.fontSize ?? 16;
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `800 ${fontSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 8;
+        ctx.fillText(text, bounds.x, bounds.y + bounds.height / 2, bounds.width);
+      }
 
-  ctx.font = `600 ${fontSize}px Arial`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
+      // --- Secondary Price ---
+      else if (original.role === 'secondary' && original.type === 'text') {
+        const textEl = original as TextElement;
+        const text = bounds.renderText ?? textEl.content;
+        const fontSize = bounds.fontSize ?? 16;
 
-  ctx.fillText(
-    element.renderLabel ?? 'Action',
-    element.x + element.width / 2,
-    element.y + element.height / 2
-  );
-}
+        ctx.fillStyle = spec.metadata?.accentColor ?? '#34d399';
+        ctx.font = `600 ${fontSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, bounds.x, bounds.y + bounds.height / 2, bounds.width);
+      }
 
-function drawText(
-  ctx: CanvasRenderingContext2D,
-  element: ResolvedElementBounds
-): void {
-  const fontSize = element.fontSize ?? 16;
+      // --- CTA Button ---
+      else if (original.role === 'action' && original.type === 'button') {
+        const btnEl = original as ButtonElement;
+        const label = bounds.renderLabel ?? btnEl.label;
+        const fontSize = bounds.fontSize ?? 16;
 
-  ctx.fillStyle = '#111827';
+        // Button background
+        const btnGrad = ctx.createLinearGradient(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height);
+        btnGrad.addColorStop(0, spec.metadata?.brandColor ?? '#6366f1');
+        btnGrad.addColorStop(1, '#4338ca');
+        ctx.fillStyle = btnGrad;
+        ctx.beginPath();
+        ctx.roundRect(bounds.x, bounds.y, bounds.width, bounds.height, 10);
+        ctx.fill();
 
-  ctx.font =
-    element.priority === 1
-      ? `700 ${fontSize}px Arial`
-      : `400 ${fontSize}px Arial`;
+        // Button text
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `700 ${fontSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+      }
 
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
+      ctx.restore();
+    }
+  }, [layout, spec, surface, elements, diagnostics, showSafeAreaGuide]);
 
-  ctx.fillText(
-    element.renderText ?? '',
-    element.x,
-    element.y
-  );
-}
+  return React.createElement('canvas', {
+    ref: canvasRef,
+    style: {
+      width: `${surface.width}px`,
+      height: `${surface.height}px`,
+      borderRadius: surface.touchOnly && surface.width < 400 ? '24px' : '8px',
+      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
+      display: 'block',
+    },
+  });
+};
