@@ -2,59 +2,9 @@
 
 A constraint-driven layout engine that takes a single declarative ad specification and dynamically adapts it across fundamentally different aspect ratios and device profiles (mobile portrait, mobile landscape, broadcast lower-third, retail kiosk, and arbitrary custom dimensions) **without hardcoded per-surface layout branches or CSS media queries**.
 
----
 
-## 🚀 Setup & Running Instructions
 
-### Prerequisites
-- Node.js (v18 or higher recommended, tested on Node v22.16)
-- npm (v9 or higher)
 
-### 1. Installation
-```bash
-npm install
-```
-
-### 2. Start the Interactive Demo
-```bash
-npm run dev
-```
-Open your browser at `http://localhost:5173`.
-
-### 3. Run Automated Constraint & Resolution Tests
-```bash
-npm run test
-```
-
-### 4. Type Check & Production Build
-```bash
-npm run typecheck
-npm run build
-```
-
----
-
-## 🖥️ How to Run the Demo and Switch Surfaces
-
-1. **Preset Surface Switcher (Left Sidebar):**
-   - **Mobile Interstitial (320 × 480):** Evaluates tall aspect ratio ($AR = 0.67$), triggering the `vertical-stack` solver. Pins high-touch CTA to the bottom and respects the $44\text{px}$ minimum tap target.
-   - **Mobile Landscape (640 × 360):** Evaluates widescreen 16:9 aspect ratio, dynamically transitioning to horizontal/column distribution.
-   - **Broadcast Lower-Third (1920 × 250):** Evaluates ultra-wide ribbon geometry ($AR = 7.68$). Triggers the `horizontal-strip` solver and enforces the $32\text{px}$ minimum text constraint for 10-foot viewing distances.
-   - **Retail Kiosk (1080 × 1080):** Evaluates 1:1 square geometry. Triggers the `split-panel` solver with an oversized $60\text{px}$ touch tap target.
-   - **Cramped Stress Test (320 × 180):** Deliberately constrained screen area. Demonstrates deterministic priority degradation: Priority 3 branding (logo) drops cleanly, secondary price truncates, while Priority 1 headline and CTA remain visible and fully functional.
-
-2. **5th "Unknown at Design Time" Live Surface Simulator:**
-   - Select **"Custom Dynamic Surface"** in the sidebar.
-   - Drag the interactive **Width** ($240\text{px} - 2000\text{px}$), **Height** ($140\text{px} - 1200\text{px}$), **Min Tap Target**, and **Viewing Distance** sliders.
-   - Watch the layout continuously adapt across aspect ratio thresholds live without modifying any code.
-
-3. **Rendering Backend Toggle (Top Bar):**
-   - Switch between **DOM / CSS** and **HTML5 Canvas** with zero changes to the underlying layout coordinates.
-
-4. **Safe Area Guide:**
-   - Toggle the dashed red boundary guide to inspect how safe-area insets prevent screen clipping.
-
----
 
 ## 🧠 Layout Algorithm: Step-by-Step
 
@@ -110,15 +60,7 @@ The engine calculates exact non-overlapping pixel coordinates $(x, y, w, h, \tex
 
 ---
 
-## ⏱️ Time Spent
-- Architecture & Mathematical Model: ~2 hours
-- TypeScript Types & Constraint Resolver: ~3 hours
-- DOM & Canvas Renderers: ~2 hours
-- Interactive Demo Application & 5th Surface Simulator: ~2 hours
-- Automated Tests & Documentation: ~1.5 hours
-- **Total Time:** ~10.5 hours
 
-      // other options...
     },
   },
 ])
