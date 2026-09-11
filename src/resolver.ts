@@ -21,17 +21,33 @@ export interface ResolvedElementBounds {
   role: AdElement['role'];
   type: AdElement['type'];
   priority: Priority;
+
   visible: boolean;
+
   x: number;
   y: number;
   width: number;
   height: number;
+
   fontSize?: number;
+
+  // Text rendering
   renderText?: string;
+
+  // Button rendering
   renderLabel?: string;
+
+  // Image rendering
+  imageSrc?: string;
+  imageAlt?: string;
+  objectFit?: 'contain' | 'cover';
+
+  // Debug information
   reasonDropped?: string;
+
   zIndex: number;
 }
+
 
 export interface ResolverDiagnostics {
   surfaceId: string;
@@ -65,6 +81,18 @@ function resolveSafeArea(profile: SurfaceProfile): SafeAreaInsets {
     right: profile.safeArea?.right ?? 0,
     bottom: profile.safeArea?.bottom ?? 0,
     left: profile.safeArea?.left ?? 0,
+  };
+}
+
+function imageRenderData(element?: AdElement) {
+  if (!element || element.type !== 'image') {
+    return {};
+  }
+
+  return {
+    imageSrc: element.src,
+    imageAlt: element.alt,
+    objectFit: element.objectFit ?? 'cover',
   };
 }
 
@@ -354,35 +382,37 @@ function solveHorizontalStrip(ctx: SolverContext): ResolvedElementBounds[] {
   if (logo && activeIds.has(logo.id)) {
     const logoY = startY + Math.round((usableHeight - logoHeight) / 2);
     results.push({
-      id: logo.id,
-      role: logo.role,
-      type: logo.type,
-      priority: logo.priority,
-      visible: true,
-      x: currentX,
-      y: logoY,
-      width: logoWidth,
-      height: logoHeight,
-      zIndex: 2,
-    });
+  id: logo.id,
+  role: logo.role,
+  type: logo.type,
+  priority: logo.priority,
+  visible: true,
+  x: currentX,
+  y: logoY,
+  width: logoWidth,
+  height: logoHeight,
+  ...imageRenderData(logo),
+  zIndex: 2,
+});
     currentX += logoWidth + gap;
   }
 
   // 2. Hero Product Image
   if (hero && activeIds.has(hero.id)) {
     const heroY = startY + Math.round((usableHeight - heroHeight) / 2);
-    results.push({
-      id: hero.id,
-      role: hero.role,
-      type: hero.type,
-      priority: hero.priority,
-      visible: true,
-      x: currentX,
-      y: heroY,
-      width: heroWidth,
-      height: heroHeight,
-      zIndex: 2,
-    });
+   results.push({
+  id: hero.id,
+  role: hero.role,
+  type: hero.type,
+  priority: hero.priority,
+  visible: true,
+  x: currentX,
+  y: heroY,
+  width: heroWidth,
+  height: heroHeight,
+  ...imageRenderData(hero),
+  zIndex: 2,
+});
     currentX += heroWidth + gap;
   }
 
@@ -541,6 +571,7 @@ function solveVerticalStack(ctx: SolverContext): ResolvedElementBounds[] {
       y: currentY,
       width: Math.round(logoSize),
       height: Math.round(logoSize),
+      ...imageRenderData(logo),
       zIndex: 2,
     });
     currentY += Math.round(logoSize) + gap;
@@ -566,6 +597,7 @@ function solveVerticalStack(ctx: SolverContext): ResolvedElementBounds[] {
       y: currentY,
       width: heroWidth,
       height: Math.round(heroHeight),
+      ...imageRenderData(hero),
       zIndex: 2,
     });
     currentY += Math.round(heroHeight) + gap;
@@ -708,17 +740,18 @@ function solveSplitPanel(ctx: SolverContext): ResolvedElementBounds[] {
   if (hero && activeIds.has(hero.id)) {
     const heroHeight = usableHeight;
     results.push({
-      id: hero.id,
-      role: hero.role,
-      type: hero.type,
-      priority: hero.priority,
-      visible: true,
-      x: startX,
-      y: startY,
-      width: leftColWidth,
-      height: heroHeight,
-      zIndex: 2,
-    });
+  id: hero.id,
+  role: hero.role,
+  type: hero.type,
+  priority: hero.priority,
+  visible: true,
+  x: startX,
+  y: startY,
+  width: leftColWidth,
+  height: heroHeight,
+  ...imageRenderData(hero),
+  zIndex: 2,
+});
   }
 
   // 2. Right Column Stack
@@ -728,17 +761,18 @@ function solveSplitPanel(ctx: SolverContext): ResolvedElementBounds[] {
   if (logo && activeIds.has(logo.id)) {
     const logoSize = Math.min(usableHeight * 0.12, 54 * viewingMultiplier);
     results.push({
-      id: logo.id,
-      role: logo.role,
-      type: logo.type,
-      priority: logo.priority,
-      visible: true,
-      x: rightColX,
-      y: currentY,
-      width: Math.round(logoSize),
-      height: Math.round(logoSize),
-      zIndex: 2,
-    });
+  id: logo.id,
+  role: logo.role,
+  type: logo.type,
+  priority: logo.priority,
+  visible: true,
+  x: rightColX,
+  y: currentY,
+  width: Math.round(logoSize),
+  height: Math.round(logoSize),
+  ...imageRenderData(logo),
+  zIndex: 2,
+});
     currentY += Math.round(logoSize) + gap;
   }
 
